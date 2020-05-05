@@ -336,3 +336,103 @@ const char *cstr = 0;       // 是对const pstring cstr的错误理解
 
 ### 2.5.2 auto类型说明符
 
+
+```c++
+// 一条声明语句只能有一个基本数据类型
+auto i = 0, *p = &i;    // 正确：i是整数、p是整形指针
+auto sz = 0, pi = 3.14; // 错误：sz和pi的类型不一致
+```
+
+#### 复合类型、常量和auto
+
+auto一般会忽略掉顶层const，同时底层const则会保留下来。如果希望推断出的auto类型是一个顶层const，需要明确指出。
+
+```c++
+int i = 0, &r = i;
+auto a = r;             // a是一个整数（r是i的别名，而i是一个整数）
+const int ci = i, &cr = ci;
+auto b = ci;            // b是一个整数（ci的顶层const特性被忽略掉了）
+auto c = cr;            // c是一个整数（cr是ci的别名，ci本身是一个顶层const）
+auto d = &i;            // d是一个整形指针（整数的地址就是指向整数的指针）
+auto e = &ci;           // e是一个指向整数常量的指针（对常量对象取地址是一种底层const）
+
+const auto f = ci;      // ci的推演类型是int，f是const int，是顶层const
+
+auto &g = ci;           // g是一个整形常量引用，绑定到ci
+auto &h = 42;           // 错误：不能为非常量引用绑定字面值
+const auto &j = 42;     // 正确：可以为常量引用绑定字面值
+
+auto k = ci, &l = i;    // k是整数，l是整形引用
+auto &m = ci, *p = &ci; // m是对整形常量的引用，p是指向整形常量的指针
+auto &n = i, *p2 = &ci; // 错误：i的类型是int，而ci的类型是const int
+```
+
+
+### 2.5.3 `decltype`类型指示符
+
+`decltype`的作用是选择并返回操作数的数据类型。在此过程中，编译器分析表达式并得到它的类型，却不实际计算表达式的值。
+
+```c++
+decltype(f()) sum = x;  // sum的类型就是f的返回类型，编译器并不实际调用额函数f
+```
+
+与`auto`不同的是，如果`decltype`使用的表达式是一个变量，则`decltype`返回该变量的类型（包括顶层const和引用在内）
+
+```c++
+const int ci = 0, &cj = ci;
+decltype(ci) x = 0;     // x的类型是const int
+decltype(cj) y = x;     // y的类型是const int&，y绑定到变量x
+decltype(cj) z;         // 错误：z是一个引用，**必须初始化**
+```
+
+#### `decltype`和引用
+
+```c++
+int i = 42, *p = &i, &r = i;
+decltype(r+0) b;    // 正确：加法的结果是int，因此b是一个（未初始化的）int
+decltype(*p) c;     // 错误：c是int&，必须初始化
+```
+
+**注意：`decltype((variable))`的结果永远是引用，而`decltype(variable)`结果只有当`variable`本身就是一个引用时才是引用。**
+
+
+# 2.6 自定义数据结构
+
+```c++
+struct Sales_data {
+    std::string bookNo;
+    unsigned units_sold = 0;
+    double revenue = 0.0;
+};  // 不要忘了分号
+
+Sales_data accum, trans, *salesptr;
+```
+
+### 2.6.3 编写自己的头文件
+
+为了确保各个文件中的类的定义一致，类通常被定义在头文件中，**而且类所在的头文件的名字应与类的名字一样。**
+
+头文件通常包含那些**只能被定义一次的实体**，如类、const和constexpr变量等。
+
+#### 预处理概述
+
+确保头文件多次被包含仍能够安全工作的常用技术是预处理器（preprocessor）。
+
+1. `#include`
+当预处理器看到`#include`标记时就会用指定的头文件的内容代替`#include`
+
+2. 头文件保护符（header guard）
+
+    头文件保护符依赖于预处理变量。预处理变量有两种状态：已定义和未定义。`#define`指令把一个名字设定为预处理变量，`#ifdef`当且仅当变量未定义时为真，`#ifndef`当且仅当变量未定义时为真。一旦检查结果为真，则执行后续操作直至遇到`#endif`指令为止
+
+    ```c++
+    #ifndef SALES_DATA_H
+    #define SALES_DATA_H
+    #include <string> 
+    struct Sales_data {
+        std::string bookNo;
+        unsigned units_sold = 0;
+        double revenue =0.0;
+    };
+    # endif
+    ```

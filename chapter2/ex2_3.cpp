@@ -79,11 +79,67 @@ void fn2_20() {
 }
 
 void fn2_21() {
+    cout << "\nex 2.21" << endl;
     int i = 0;
     // double *dp = &i; // 类型不匹配
     // int *ip = i;  // i不是地址
     int *ip = &i;
     cout << "*ip: " << *ip << endl;
+}
+
+void fn2_33() {
+    cout << "\nex 2.33" << endl;
+    int i = 0, &r = i;
+    const int ci = i, &cr = ci;
+    auto a = r;
+    auto b = ci;
+    auto c = cr;
+    auto d = &i;
+    auto e = &ci;
+    auto g = ci;
+    cout << "a before: " << a << endl;
+    a = 42;
+    cout << "a after : " << a << endl;
+    cout << "b before: " << b << endl;
+    b = 42;
+    cout << "b after : " << b << endl;
+    cout << "c before: " << c << endl;
+    c = 42;
+    cout << "c after : " << c << endl;
+    // d = 42; // 不能把42赋给整形指针
+    // cout << "d: " << d << endl;
+    // e = 42; // 不能把42赋给指向整形常量的指针
+    // cout << "e: " << e << endl;
+    cout << "g before: " << g << endl;
+    g = 42;
+    cout << "g after: " << g << endl;
+}
+
+void fn2_34() {
+    cout << "\nex 2.34" << endl;
+    const int i = 42;
+    auto j = i;
+    const auto &k = i;
+    auto *p = &i;
+    const auto j2 = i, &k2 = i;
+    cout << "j: " << j << endl;
+    cout << "k: " << k << endl;
+    cout << "p: " << p << endl;
+    cout << "j2: " << j2 << endl;
+    cout << "k2: " << k2 << endl;
+}
+
+void fn2_36() {
+    cout << "\nex 2.36" << endl;
+    int a = 3, b = 4;
+    decltype(a) c = a;
+    decltype((b)) d = a;
+    ++c;
+    ++d;
+    cout << "a: " << a << endl; // a=4
+    cout << "b: " << b << endl; // b=4
+    cout << "c: " << c << endl; // c=4
+    cout << "d: " << d << endl; // d=4
 }
 
 
@@ -97,6 +153,9 @@ int main() {
     fn2_18();
     fn2_20();
     fn2_21();
+    fn2_33();
+    fn2_34();
+    fn2_36();
     int null = 0, *p = &null;
     cout << "null: " << null << *p << endl;
 }
