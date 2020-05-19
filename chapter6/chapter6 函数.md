@@ -240,3 +240,48 @@ print(j)    // 正确：j转换成int*并指向数组首元素的指针。
 
 ### 数组引用参数
 
+```c++
+// 正确：形参是数组的引用，维度是类型的一部分
+// 限制：只能将函数作用于大小为10的数组
+void print(int (&arr)[10]) {// arr是具有10个整数的整形数组的引用
+    for (auto elem : arr)
+        cout << elem << endl;
+}
+
+f(int &arr[10]) // 错误：将arr声明成了具有10个整形引用的数组。
+```
+
+### 传递多维数组
+
+```c++
+// 等价
+void print(int (*matrix)[10], int rowSize) {/*...*/} // matrix是一个指向含有10个整数的数组的指针
+void print(int matrix[][10], int rowSize) {/*...*/} // 编译器忽略掉第一个维度。
+```
+
+
+## 6.2.5 main：处理命令行选项
+
+```c++
+// 等价
+int main(int argc, char *argv[]) {/*...*/}
+int main(int argc, char **argv) {/*...*/}
+```
+
+`argv`是一个数组，它的元素是指向C风格字符串的指针；`argc`表示数组中字符串的数量。
+
+当实参传给`main`函数之后，`argv`的第一个元素指向程序的名字或者一个空字符串，接下来的元素依次传递命令行提供的实参。最后一个指针之后的元素保证为0。
+
+```c++
+prog -d -o ofile data0
+
+argv[0] = "prog";
+argv[1] = "-d"; // 可选实参从此处开始
+argv[2] = "-o";
+argv[3] = "ofile";
+argv[4] = "data0";
+argv[5] = 0;
+```
+
+### 6.2.6 含有可变形参的函数
+
