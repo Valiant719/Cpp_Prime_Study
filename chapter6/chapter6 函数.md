@@ -203,7 +203,7 @@ print(j)    // 正确：j转换成int*并指向数组首元素的指针。
 
     ```c++
     void print(const char *cp) {
-         if (cp)
+         if (cp)    
             while (*cp)
                 cout << *cp++;  // 输出当前字符并将指针向前移动一个位置
     }
@@ -283,5 +283,298 @@ argv[4] = "data0";
 argv[5] = 0;
 ```
 
-### 6.2.6 含有可变形参的函数
+## 6.2.6 含有可变形参的函数
+
+### initializer_list形参
+
+传入`initializer_list`对象。
+
+```c++
+#include <initializer_list>
+
+void error_msg(initializer_list<string> il) {
+    for (auto beg = il.begin(); beg != il.end(); ++beg) 
+        cout << *beg << " ";
+    cout << endl;
+}
+```
+
+```c++
+// expected和actual是string对象
+if (expected != actual)
+    error_msg({"functionX", expected, actual});
+else
+    error_msg({"functionX", "okay"})
+```
+
+### 省略符形参(略)
+
+省略符形参时为了便于C++程序访问某些特殊的C代码而设置的，这些代码使用了名为`varargs`的C标准库功能。
+
+大多数类类型的对象在传递给省略符形参时都无法正确拷贝。
+
+```c++
+void foo(param_list, ...);  // ...只能在形参列表的最后一个位置
+void foo(...);
+```
+
+
+# 6.3 返回类型和return语句
+
+## 6.3.2 有返回值的函数
+
+### 值是如何被返回的
+
+返回一个值得方式和初始化一个变量或形参的方式完全一样：**返回值用于初始化调用点的有一个临时量**，该临时量就是函数调用的结果。
+
+### 不要返回局部变量的引用或指针
+
+局部变量在函数结束时会被销毁
+
+### 引用返回左值
+
+```c++
+char &get_val(string &str, string:size_type ix) {
+    return str[idx];
+}
+
+int main() {
+    string s("a value");
+    cout << s << endl;
+    get_val(s, 0) = 'A';    // get_val返回左值，可以赋值
+    cout << s << endl;      // 输出：A value
+    return 0;
+}
+```
+
+### 列表初始化返回值
+
+```c++
+vector<string> process() {
+    // ...
+    // expected和actual是string对象
+    if (expected.empty())
+        return {};                      // 返回一个空的vector对象
+    else if (expected == actual)
+        return {"functionX", "okey"};   // 返回列表初始化的vector对象
+    else
+        return {"functionX", expected, actual};
+}
+```
+
+
+### 主函数main的返回值
+
+```c++
+#include <cstdlib>
+
+int main() {
+    if (some_failure)
+        return EXIT_FAILURE;
+    else
+        return EXIT_SUCCESS;
+}
+```
+
+
+## 6.3.3 返回数组指针
+
+**因为数组不能被拷贝，所以函数不能返回数组。**
+
+### 使用别名
+
+```c++
+typedef int arrt[10];   
+using arrt = int[10];    // 两者等价
+
+arrt *func(int i);      // func返回一个指向含有10个整数的数组的指针
+```
+
+### 一般方法
+
+```c++
+int (*func(int i))[10]  // 由内而外理解
+```
+
+### 使用尾置返回类型（trailing return type）
+
+```c++
+auto func(int i) -> int(*)[10]
+```
+
+### 使用`decltype`
+
+```c++
+int odd[] = {1, 3, 5, 7, 9};
+int even[] = {0, 2, 4, 6, 8};
+
+decltype(odd) *arrPtr(int i) {
+    return (i % 2) ? &odd : & even;
+}
+```
+
+
+# 6.4 函数重载
+
+对于重载函数来说，它们应该在**形参数量**或**形参类型**上有所不同。
+
+```c++
+Record lookup(const Account&);
+bool lookup(const Account&);    // 错误：与上一个函数相比只有返回类型不同
+```
+
+### 重载和const形参
+
+顶层`const`不影响传入函数的对象。一个拥有**顶层**`const`的形参无法和另一个没有顶层`const`的形参区分开来。
+
+```c++
+Record lookup(Phone);
+Record lookup(const Phone); // 重复声明了Record lookup(Phone)
+```
+
+通过区分指针或引用所指向的对象是常量还是非常量可以实现函数重载, 此时`const`是底层的。
+
+```c++
+Record lookup(Account &);   
+Record lookup(const Account &); // 新函数，作用域常量引用
+Record lookup(Account *);
+Record lookup(const Account *); // 新函数，作用于指向常量的指针
+```
+
+如果传入的是非常量对象，优先使用非常量版本的函数。
+
+
+### `const_cast`和重载
+
+TODO
+
+
+## 6.4.1 重载与作用域
+
+一旦在当前作用域中找到了所需的名字，编译器就会忽略掉外层作用域中的同名实体。
+
+
+# 6.5 特殊用途语言特性
+
+## 6.5.1 默认实参
+
+```c++
+typedef string::size_type sz;
+string screen(sz ht = 24; sz wid = 80, char backgrnd = ' ');
+
+string window;
+window = screen();
+window = screen(66;)
+```
+
+### 默认实参声明
+
+多次声明不能修改一个已经存在的默认值，但是可以添加默认实参。
+
+```c++
+string screen(sz, sz, char = ' ');
+string screen(sz, sz, char = '*');      // 错误：重复声明
+string screen(sz = 24, sz = 80, char);  // 正确：添加默认实参
+```
+
+### 默认实参初始值
+
+局部变量不能作为默认实参。除此之外，只要表达式的类型能转换成形参所需的类型，该表达式就能作为默认实参。
+
+```c++
+sz wd = 80;
+char def = ' ';
+sz ht();
+string screen(sz = ht(), sz = wd, char = def);
+string window = screen();   // 调用screen(ht(), 80, ' ')
+
+void f2() {
+    def = '*';          // 改变默认实参的值
+    sz wd = 100;        // 隐藏了外层定义的wd，但是没有改变默认值
+    window = screen();  // 调用screen(ht(), 80, '*')
+}
+```
+
+## 6.5.2 内联函数和`constexpr`函数
+
+将函数指定为**内联函数**，通常就是将它在每个调用点上“内联地”展开。
+
+一般来说，内联机制用于优化规模较小、流程直接、频繁调用的函数。
+
+```c++
+inline const string &shorterString(const string &s1, const string &s2) {
+    return s1.size() <= s2.size() ? s1 : s2;
+}
+```
+
+### `constexpr`函数
+
+`constexpr`函数是指能用于常量表达式的函数。函数的返回类型以及所有形参的类型都得是**字面值类型**，而且函数体中**必须只有一条`return`语句**。
+
+编译器把`constexpr`函数的调用替换成结果只。为了能在编译过程中随时展开，`constexpr`函数被隐式地指定为内联函数。
+
+```c++
+constexpr int new_sz() { return 42; }
+constexpr int foo = new_size(); // 正确：foo是一个常量表达式
+```
+
+我们允许`constexpr`函数的返回值**并非一个常量**。
+
+```c++
+// 如果arg是常量表达式，则scale(arg)也是常量表达式
+constexpr size_t scale(size_t cnt) { return new_size() * cnt;}
+```
+
+### 把内联函数和`constexpr`函数放在头文件内
+
+内联函数和`constexpr`函数通常**定义**在头文件中。
+
+## 6.5.3 调试帮助
+
+### `assert`预处理宏
+
+```c++
+#include <cassert>
+
+assert(expr)
+```
+
+### `NDEBUG`预处理变量
+
+如果定义了`NDEBUG`，则assert什么也不做。默认状态下没有定义NDEBUG，此时`assert`将执行运行时检查。
+
+```c++
+void print(const int ia[], size_t size) {
+    #ifndef NDEBUG
+        // __func__是编译器定义的一个局部静态变量，用于存放函数的名字
+        cerr << __func__ << ": array_size is " << size << endl;
+    #endif
+}
+```
+
+| 名字     | 说明                         |
+| :------- | :---------------------------|
+| __func__ | 函数名字                     |
+| __FILE__ | 存放当前行号的整形字面值      |
+| __LINE__ | 存放当前行号的整形字面值      |
+| __TIME__ | 存放文件编译时间的字符串字面值 |
+| __DATA__ | 存放文件编译日期的字符串字面值 |
+
+
+# 6.6 函数匹配
+
+### 确定候选函数和可行函数
+
+- 第一步：选定候选函数。候选函数具备两个特征：一是与被调用的函数同名，二是其声明在调用点可见。
+- 第二步：选出可行函数。可行函数也有两个特征：一是其形参数量与本次调用提供的实参数量相等，二是每个实参的类型与对应的形参类型相同，或者能转换成形参的类型。
+- 第三步：从可行函数中选择与本次调用最匹配的函数。实参类型与形参类型越接近，它们匹配得越好。
+
+### 含有多个形参的函数匹配
+
+如果有且仅有一个函数满足下列条件，则匹配成功：
+
+- 该函数每个实参的匹配都不劣于其他可行函数所需的匹配。
+- 至少有一个实参的匹配优于其他可行函数提供的匹配。
+
+## 6.6.1 实参类型转换
 
