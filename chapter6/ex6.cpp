@@ -123,7 +123,10 @@ void ex6_32() {
     cout << endl;
 }
 
-int main() {
+
+int
+main()
+{
     ex6_4();
     ex6_5();
     ex6_10();

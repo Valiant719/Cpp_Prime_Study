@@ -578,3 +578,13 @@ void print(const int ia[], size_t size) {
 
 ## 6.6.1 实参类型转换
 
+page219
+
+
+# 6.7 函数指针
+
+```c++
+bool lengthCompare(const string &, const string &);
+// (*pf)说明pf是一个指针，(const string &, cosnt string &)说明指向一个函数
+bool (*pf)(const string &, const string &); // 函数指针，括号必不可少
+```
