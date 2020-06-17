@@ -126,11 +126,169 @@ array<int, 42>; # 进行值初始化
 
 |||
 |:-|:-|
-|`c.push_back(t)`<br>`c.emplace_back(t)`|在`c`的尾部创建一个值为`t`或者由`args`创建的元素。返回`void`|
-|`c.push_front(t)`<br>`c.emplace_front(t)`|在`c`的头部创建一个值为`t`或者由`arg`创建的元素。返回`void`|
+|`c.push_back(t)`<br>`c.emplace_back(t)`|在`c`的尾部创建一个值为`t`或者由`args`创建的元素。返回`void`。`array`和`forward`**不支持**。|
+|`c.push_front(t)`<br>`c.emplace_front(t)`|在`c`的头部创建一个值为`t`或者由`arg`创建的元素。返回`void`。`list`、`forward list`和`deque`支持。|
 |`c.insert(p, t)`<br>`c.emplace(p, args)`|在迭代器`p`指向的元素**之前**创建一个值为`t`或者由`args`创建的元素。返回指向新添加的元素的迭代器。|
 |`c.insert(p, n, t)`|在迭代器`p`指向的元素之前插入`n`个值为`t`的元素，返回指向新添加的第一个元素的迭代器；若`n`为0，则返回`p`|
 |`c.insert(p, b, e)`|将迭代器`b`和`e`指定的范围内的元素插入到迭代器`p`指向的元素之前。`b`和`e`不能指向`c`中的元素。返回指向新添加的第一个元素的迭代器；若范围为空，则返回p|
 |`c.insert(p, il)`|`il`是一个花括号包围的元素值列表。将这些给定值插入到迭代器`p`指向的元素之前。返回指向新添加的第一个元素的迭代器；若列表为空，则返回`p`|
 
 向一个`vector`，`string`或`deque`插入元素会使所有指向容器的迭代器、引用和指针失效。
+
+容器元素是拷贝。
+
+**使用`emplace`操作**
+
+`emplace`将`args`传递给元素类型的构造函数创建对象。`args`必须与元素类型的某一构造函数相匹配。
+
+```c++
+c.push_back("978-0590353403", 25, 15.99)
+c.emplace_back(Sales_data("978-0590353403", 25, 15.99))
+```
+
+
+## 9.3.2 访问元素
+
+|||
+|:-|:-|
+|`c.back()`|返回`c`中尾元素的引用。若`c`为空，函数行为未定义|
+|`c.front()`|返回`c`中首元素的引用。若`c`为空，函数行为未定义|
+|`c[n]`|返回`c`中下标为`n`的元素的引用，`n`是一个无符号整数。若`n>=c.size()`, 则函数行为未定义|
+|`c.at(n)`|返回下标为`n`的元素的引用，如果下标越界，则抛出一个`out_of_range`异常|
+
+注：`at`和下标操作只适用于`string`、`vector`、`deque`和`array`（链表不支持随机访问。）。`back`不使用与`forward_list`。
+
+
+## 9.3.3 删除元素
+|||
+|:-|:-|
+|`c.pop_back()`|删除`c`中的尾元素。若`c`为空，则函数行为未定义。函数返回`void`|
+|`c.pop_front()`|删除`c`中的首元素。若`c`为空，则函数行为未定义。函数返回`void`|
+|`c.erase(p)`|删除迭代器`p`所指定的元素，返回一个指向**被删元素之后**元素的迭代器，若`p`指向尾元素，则返回尾后（off-the-end）迭代器。若`p`是尾后迭代器，则函数未定义|
+|`c.erase(b, e)`|删除迭代器`b`和`e`所指定范围内的元素。返回一个指向最后一个被删元素之后元素的迭代器，若`e`本身就是尾后迭代器，则函数也返回尾后迭代器|、
+|`c.clear()`|删除`c`中的所有元素，返回`void`|
+
+这些迭代器会改变容器的大小，所以不适用于`array`。
+`forward_list`所有特殊版本的`erase`。
+`forward_list`不支持`pop_back`；`vector`和`string`不支持`pop_front`。
+
+```c++
+list<int> lst = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+auto it = lst.begin();
+while (it != lst.end())
+    if (*it % 2)
+        it = lst.erase(it)  // 不用++it
+    else
+        ++it
+```
+
+## 9.3.4 特殊的`forward_list`操作
+
+|||
+|:-|:-|
+|`lst.before_begin()`<br>`lst.cbefore_begin()`|返回指向链表首元素之前不存在的元素的迭代器。**此迭代器不能解引用**|
+|`lst.insert_after(p, t)`<br>`lst.insert_after(p, n, t)`<br>`lst.insert_after(p, b, e)`<br>`lst.insert_after(p, il)`|在迭代器`p`之后的位置插入元素。`t`是一个对象，`n`是数量，`b`和`e`是表示范围的一对迭代器（`b`和`e`不能指向`lst`内），`il`是一个花括号列表。返回一个指向最后一个插入元素的迭代器。如果范围为空，则返回`p`。若`p`为尾后迭代器，则函数行为未定义。|
+|`emplace_after(p, args)`|使用`args`在`p`指定的位置之后创建一个元素。返回一个指向这个新元素的迭代器。若`p`为尾后迭代器，则函数行为未定义|
+|`lst.erase_after(p)`<br>`lst.erase_after(b, e)`|删除`p`指向的位置之后的元素，或删除从`b`之后知道（但不包含）`e`之间的元素。返回一个指向被删元素之后元素的迭代器，若不存在这样的元素，则返回尾后迭代器。如果`p`指向`lst`的尾元素或者是一个尾后迭代器，则函数行为未定义|
+
+```c++
+forward_list<int> flst = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+auto prev = flst.before_begin();
+auto curr = flst.begin();
+while (curr != flst.end()) {
+    if (*curr % 2)
+        curr = flst.erase_after(prev)
+    else {
+        prev = curr;
+        ++curr;
+    }
+}
+```
+
+## 9.3.5 改变容器大小
+
+|||
+|:-|:-|
+|`c.resize(n)`|调整`c`的大小为`n`个元素。若`n < c.size()`，则多出的元素被丢弃。若必须添加新元素，对新元素进行值初始化|
+|`c.resize(n, t)`|调整`c`的大小为`n`个元素。任何新添加的元素都初始化为值`t`|
+
+`resize`不适用于`array`。
+
+如果`resize`缩小容器，则指向被删除元素的迭代器、引用和指针都会失效；对`vector`、`string`或`deque`进行`resize`可能导致迭代器、指针和引用失效。
+
+
+## 9.3.6 容器操作可能使迭代器失效
+
+page 315
+
+由于向迭代器添加元素和从迭代器删除元素的代码可能会使迭代器失效，因此必须保证每次改变容器的操作之后都正确地重新定位迭代器。这个建议对`vector`、`string`和`deque`尤为重要。
+
+```c++
+// 删除偶数元素，复制每个奇数元素
+vector<int> vi = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+auto iter = vi.begin();
+// auto end = vi.end();
+// while (iter != end); // 错误：end可能会失效
+while (iter != vi.end()) {
+    if (*iter % 2) {
+        iter = vi.insert(iter, *iter);
+        iter += 2;  // 跳过当前元素以及插入到它之前的元素
+    } else
+        iter = vi.erase(iter);
+}
+```
+
+# 9.4 `vector`对象是如何增长的
+
+由于`vector`和`string`中元素是连续存储的，所以如果改变`vector`和`string`的大小，可能会导致整个容器的移动。
+
+|||
+|:-|:-|
+|`c.shrink_to_fit()`|请将`capacity()`减少为与`size()`相同大小|
+|`c.capacity()`|不重新分配内存空间的话，`c`可以保存多少元素|
+|`c.reserve(n)`|分配至少能容纳`n`个元素的内存空间。`reserve`永远不会减少容器占用的内存空间，调用后`capacity`将会大于等于`n`。|
+
+`shrink_to_fit`只适用于`vector`、`string`和`deque`。
+`capacity`和`reserve(n)`只适用于`vector`和`string`。
+
+<br>
+
+# 9.5 额外的`string`操作
+
+## 9.5.1 构造`string`的其他方法
+
+|||
+|:-|:-|
+|`string s(cp, n)`|`s`是`cp`指向的数组中前`n`个字符的拷贝。此数组至少应该包含`n`个字符|
+|`string s(s2, pos2)`|`s`是`string s2`从下标`pos2`开始的字符的拷贝。若`pos2 > s2.size()`，构造函数的行为未定义|
+|`string s(s2, pos1, pos2)`|`s`是`string s2`从下标`pos1`开始`len2`个字符的拷贝。若`pos2 > s2.size()`，构造函数的行为未定义。不管`len2`的值是多少，构造函数**至多**拷贝`s2.size() - pos`个字符|
+
+### `substr`操作
+
+|||
+|:-|:-|
+|`s.substr(pos, n)`|返回一个`string`，包含`s`中从`pos`开始的`n`个字符的**拷贝**。`pos`的默认值为0.`n`的默认值为`s.size()-pos`，即拷贝从`pos`开始的素有字符。|
+
+
+## 9.5.2 改变`string`的其他方法
+
+|||
+|:-|:-|
+|`s.insert(pos, args)`|在`pos`之前插入`args`指定的字符，`pos`可以是一个下标或一个迭代器。接受下标的版本返回一个指向`s`的引用；接受迭代器的版本返回指向第一个插入字符的迭代器|
+|`s.erase(pos, len)`|删除从位置`pos`开始的`len`个字符。如果`len`被省略，则删除从`pos`开始直至`s`末尾的所有字符。返回一个指向`s`的引用。|
+|`s.assign(args)`|将`s`中的字符替换为`args`指定的字符。返回一个指向`s`的引用|
+|`s.append(args)`|将`args`追加到`s`。返回一个指向`s`的引用|
+|`s.replace(range, args)`|删除`s`中范围`range`内的字符，替换为`args`指定的字符。`range`或者是一个下标和一个长度，或者是一对指向`s`的迭代器。返回一个指向`s`的引用|
+
+`args`可以是下列形式之一；`append`和`assign`可以使用所有形式。`str`不能与`s`相同，迭代器`b`和`e`不能指向`s`。
+
+|`replace(pos, len, args)`|`replace(b, e, args)`|`insert(pos,args)`|`insert(iter, args)`|`assign`和`append`|`args`可以是|说明|
+|:-|:-|:-|:-|:-|:-|:-|
+|是|是|是|否|是|`str`|字符串`str`|
+|是|否|是|否|是|`str, pos, len`|`str`从`pos`开始最多`len`个字符|
+|是|是|是|否|是|`cp, len`|从`cp`指向的字符数组的前（最多）`len`个字符|
+|是|是|否|否|是|`cp`|`cp`指向的以空字符结尾的字符数组|
+|是|是|是|是|是|`n, c`|`n`个字符`c`|
+|否|是|否|是|是|`b, e`|迭代器`b`和`e`指定范围内的字符|
+|否|是|否|是|是|初始化列表|花括号包围的，以逗号分隔的字符列表|
+
