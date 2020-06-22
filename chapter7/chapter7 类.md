@@ -116,3 +116,121 @@ struct Sales_data {
 ### 构造函数初始值列表
 
 冒号以及花括号之间的部分称为**构造函数初始值列表**（constructor initialize list），负责为新创建的对象的一个或几个数据成员赋初值。
+
+```c++
+Sales_data(const std::string &s):
+           bookNo(s), units_sold(0), revenue(0) { }
+```
+
+## 7.1.5 拷贝、赋值和析构
+
+```c++
+total = trans 
+
+// Sales_data的默认赋值操作等价于：
+total.bookNo = trans.bookNo;
+total.units_sold = trans.units_sold;
+total.revenue = trans.revenue;
+```
+
+当类需要分配类对象之外的资源时，合成版本常常会失效。
+
+很多需要动态内存的类能（而且应该）使用`vector`对象或者`string`对象管理必要的存储空间。使用`vector`和`string`的类能避免分配和释放内存带来的复杂性。
+
+
+## 7.2 访问控制与封装
+
+访问说明符（access specifiers）：
+
+- 定义在`public`之后的成员在整个程序内可被访问，`public`成员定义类的接口。
+- 定义在`private`之后的成员可以被类的成员函数访问，但是不能被使用该类的代码访问，`private`部分封装（即隐藏了）类的实现细节。
+
+`struct`和`class`关键字的唯一区别就是默认的访问权限：
+- `struct`默认访问权限为`public`
+- `class`默认访问权限为`private`
+
+### 7.2.1 友元
+
+类可以允许其他类或函数访问它的非公有成员，方法是令其他类或者函数成为它的**友元**（friend）
+
+友元的声明仅仅制定了访问权限，而非一个通常意义上的函数声明。如果希望用户能够调用某个友元函数，必须在友元声明之外再专门对函数进行一次声明。
+
+为了使友元函数对类的用户可见，我们通常把友元的声明和类的声明放置在同一个头文件中（类的外部）。
+
+```c++
+class Sales_data {
+    // 为Sales_data的非成员函数所做的友元声明
+    friend Sales_data add(const Sales_data&, const Sales_data&);
+    friend std::istream &read(std::istream&, Sales_data&);
+    friend std::ostream &print(std::ostream&, const Sales_data&);
+    // 其他成员及访问符与之前一致
+    public:
+        Sales_data() == default;
+        Sales_data(const std::string &s, unsigned n, double p):
+                   bookNo(s), units_sold(n), revenue(p*n) {}
+        Sales_data(std::string &s): bookNo(s) {}
+        Sales_data(std::istream&);
+        std::string isbn() const {return bookNo;}
+        Sales_data &conbime(const Sales_data&);
+    private:
+        std::string bookNo;
+        unsigned units_sold = 0;
+        double revenue = 0.0;
+};
+// Sales_data接口的非成员函数部分的声明
+Sales_data add(const Sales_data&, const Sales_data&);
+std::istream &read(std::istream&, Sales_data&);
+std::ostream &print(std::ostream&, const Sales_data&);
+```
+
+# 7.3 类的其他特性
+
+## 7.3.1 类成员再探
+
+```c++
+class Screen {
+    public:
+        // using pos=std::string::size_type
+        typedef std::string::size_type pos; // 类型别名，必须先定义再使用，所以通常定义再开头
+        Screen() = default; //因为Screen有另一个构造函数，所以本函数是必需的
+        Screen(pos ht, pos wd, char c): height(ht), width(wd), contents(ht * wd, c) {}
+        char get() const {return contents[cursor];} // 隐式内联
+        inline char get(pos ht, pos wd) const;  // 显式内联
+        Screen &move(pos r, pos c); // 能在之后被设为内联
+    private:
+        pos cursor = 0;
+        pos height = 0, width = 0;
+        std::string contents;
+};
+
+inline Screen &move(pos r, pos c) {
+    pos row = r * width;
+    cursor = row + c;
+    return *this;
+}
+char Screen::get(pos r, pos c) const {  // 类内显式声明为内联
+    pos row = r * width;
+    return contents[row + c];
+}
+```
+
+最好只在类外部定义的地方说明`inline`。
+
+**可变数据成员**
+
+一个**可变数据成员（mutable data member）**永远不会是`const`，即使它是`const`对象的成员。
+
+```c++
+// 即使在一个const对象内也能被修改
+mutable size_t access_ctr;
+```
+
+## 7.3.2 返回`*this`的成员函数
+
+如果返回的是引用，可以以`myScreen.move(4.0).set('#')`的方式链式调用。
+
+一个`const`成员函数如意以引用的形式返回`*this`，那么它的返回类型将是一个常量引用。
+
+因为非常量版本的函数对于常量版本是不可用的，所以我们只能在一个常量对象上调用`const`成员。
+
+## 7
