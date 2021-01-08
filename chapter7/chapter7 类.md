@@ -229,8 +229,225 @@ mutable size_t access_ctr;
 
 如果返回的是引用，可以以`myScreen.move(4.0).set('#')`的方式链式调用。
 
-一个`const`成员函数如意以引用的形式返回`*this`，那么它的返回类型将是一个常量引用。
+一个`const`成员函数如以引用的形式返回`*this`，那么它的返回类型将是一个常量引用。
 
-因为非常量版本的函数对于常量版本是不可用的，所以我们只能在一个常量对象上调用`const`成员。
+因为非常量版本的函数对于常量对象是不可用的，所以我们只能在一个常量对象上调用`const`成员。
 
-## 7
+## 7.3.3 类类型
+
+### 类的声明
+
+```c++
+class Screen;   // 前向声明
+struct Screen;
+```
+前向声明（forward declaration）：它向程序中引入名字Screen并且指明Screen是一种类类型。其在声明之后定义之前是一个**不完全类型**。可以定义指向这种类型的指针或引用，也可以声明（但是不能定义）以不完全类型作为参数或者返回类型的函数，但只有在定义之后才能用引用或指针访问其成员。
+
+一个类的成员类型不能是该类自己，但是可以是指向它自身类型的引用或指针：
+
+```c++
+class Link_screen {
+    Screen window;
+    Link_screen *next;
+    Lind_screen *prev;
+};
+```
+
+## 7.3.4 友元再探
+
+### 类之间的友元关系
+
+```c++
+class Screen {
+    // Window_mgr的成员可以访问Screen类的私有部分
+    friend class Window_mgr;
+    // Screen类的剩余部分
+};
+
+class Window_mgr {
+public:
+    // 窗口中每个屏幕的编号
+    using ScreenIndex = std::vector<Screen>::size_type;
+    // 按照编号将指定的Screen重置为空白
+    void clear(ScreenIndex);
+private:
+    std::vector<Screen> screens{Screen(24, 80, ' ')};
+};
+
+void Window_mgr::clear(ScreenIndex i)
+{
+    Screen &s = screens[i];
+    // 可以访问Screen的私有部分
+    s.contents = string(s.height * s.weight, ' ');
+}
+```
+
+**友元关系不存在传递性，每个类负责控制自己的友元类和友元函数**，A是B的友元，B是C的友元，不能推出A是C的友元。
+
+### 令成员函数作为友元
+
+```c++
+class Screen {
+    // Window_mgr::clear必须在Screen类之前被声明
+    friend void Window_mgr::clear(ScreenIndex);
+    // Screen类的剩余部分
+}
+```
+
+**必须仔细组织程序的结构以满足声明和定义的彼此依赖关系：**
+- 首先定义Window_mgr类，声明其clear函数，**但是不能定义它**。在clear使用Screen的成员之前必须先声明Screen。
+- 接下来定义Screen，包括对于clear的友元声明。
+- 最后定义clear，此时它才可以使用Screen成员。
+
+### 函数重载和友元
+
+重载函数是不同的函数，所有需要分别声明友元。
+
+
+### 友元声明和作用域
+
+```c++
+struct X {
+    friend void f() {/* 友元函数可以定义在类的内部 */}
+    X() { f(); }    // 错误：f还没有被声明
+    void g();
+    void h();
+};
+void X::g() { return f(); } // 错误：f还没有被声明
+void f();                   // 声明那个定义在X中的函数
+void X::h() { return f(); } // 正确，现在f的声明在作用域内
+```
+
+**就算在类的内部定义友元函数，我们也必须在类的外部提供相应的声明从而使得函数可见。**
+注：没有太看懂。
+
+
+## 7.4 类的作用域
+
+一个类就是一个作用域。
+```c++
+class Window_mgr {
+public:
+    ScreenIndex addScreen(const Screen&);
+    // 其他成员与之前的版本一致
+};
+
+// 返回类型在Window_mgr作用域之外，所以需要使用Window_mgr::ScreenIndex
+Window_mgr::ScreenIndex Window_mgr::addScreen(const Screen &s) {
+    screens.push_back(s); // Window_mgr作用域内，可以使用Window_mgr成员screens
+    return screens.size() - 1;
+}
+```
+
+### 7.4.1 名字查找与类的作用域
+
+类的定义分两步处理：1. 首先，编译成员的声明；2. 知道类全部可见后才编译函数体。这使得**成员函数**可以使用类中定义的任何名字。
+
+声明中使用的名字，包括返回类型或者参数列表中使用的名字，**都必须在使用前确保可见**。
+
+#### 用于类成员声明的名字查找
+
+#### 类型名要特殊处理
+
+```c++
+typedef double Money;
+class Account {
+public:
+    Money balance() { return bal; } // 使用外层作用域的Money，和数据成员bal
+private:
+    typedef double Money;   // 错误：不能重新定义Money
+    Money bal;
+}
+```
+
+#### 成员定义中的普通块作用域的名字查找
+
+成员函数内 $\Longrightarrow$ 类内 $\Longrightarrow$ 在函数定义之前的作用域内继续查找
+
+```c++
+void Screen::dummy_fcn(pos height) {
+    cursor = width * height         // 参数height，成员函数height被隐藏
+    cursor = width * this->height;  // 成员height
+    cursor = width * Screen::height // 成员height
+}
+```
+
+#### 类作用域之后，在外围的作用域中查找
+
+
+#### 在文件中名字的出现处对其进行解析
+
+page 257
+
+
+## 7.5 构造函数再探
+
+### 构造函数的初始值有时必不可少
+
+如果成员是cosnt、引用，或者属于某种未提供默认构造函数的了类型，我们必须通过构造函数初始值列表为这些成员提供初始值。
+
+```c++
+class ConstRef {
+public:
+    ConstRef(int ii);
+private:
+    int i;
+    const int ci;
+    int &ri;
+}
+
+ConstRef:ConstRef(int ii) { // 赋值
+    i = ii;     // 正确
+    ci = ii;    // 错误：不能给const赋值
+    ri = i;     // 错误：ri没被初始化
+}
+
+// 正确：显示的初始化引用和const成员
+ConstRef:ConstRef(int ii): i(ii), ci(ii), ri(i) {};
+```
+
+### 成员初始化的顺序
+
+初始值列表的成员初始化顺序与它们在类定义中的出现顺序一致。
+
+最好令构造函数初始值的顺序与成员函数声明的顺序保持一致。而且如果可能的话，尽量避免使用某些成员初始化其他成员。
+
+```c++
+class X {
+    int i;
+    int j;
+public:
+    // 虽然初始值列表中j在i直线，但实际的初始化顺序是先初始化i再初始化j
+    X(int val): j(val), i(j) {} // 未定义的：i在j之前被初始化
+}
+```
+
+### 默认实参和构造函数
+
+如果一个构造函数为所有参数都提供了默认实参，则它实际上也定义了默认构造函数。
+
+```c++
+class Sales_data {
+public:
+    // 定义默认构造函数，令其与只接受一个string实参的构造函数功能相同
+    Sales_data(std::string s, unsigned cnt, double rev):
+        bookNo(s), units_sold(cnt), revenue(rev * cnt) {}
+    Sales_data(std::istream &is) { read(is, *this); }
+    // 其他成员与之前的版本一致
+};
+```
+
+## 7.5.2 委托构造函数
+
+
+## 7.5.3 默认构造函数的作用
+
+
+## 7.5.4 隐式地类类型转换
+
+## 7.5.5 聚合类
+
+## 7.5.6 字面值常量类
+
+
+# 类的静态成员
