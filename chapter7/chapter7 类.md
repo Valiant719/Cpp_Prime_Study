@@ -339,6 +339,7 @@ Window_mgr::ScreenIndex Window_mgr::addScreen(const Screen &s) {
 }
 ```
 
+
 ### 7.4.1 名字查找与类的作用域
 
 类的定义分两步处理：1. 首先，编译成员的声明；2. 知道类全部可见后才编译函数体。这使得**成员函数**可以使用类中定义的任何名字。
@@ -439,15 +440,224 @@ public:
 
 ## 7.5.2 委托构造函数
 
+```c++
+class Sales_data {
+public:
+    // 非委托构造函数使用对应的实参初始化成员
+    Sales_data(std::string s, unsigned cnt, double price):
+        bookNo(s), units_sold(cnt), revenue(cnt*price) {}
+    Sales_data(): Sales_data("", 0, 0) {}
+    Sales_data(std::string s): Sales_data(s, 0, 0) {}
+    Sales_data(std::istream &is): Sales_data() {
+        read(is, *this);
+    }
+    // 其他成员与之前的版本一致
+}
+```
+构造函数 $\Longrightarrow$ 受委托构造函数的初始值列表和函数体 $\longrightarrow$ 函数体
+
 
 ## 7.5.3 默认构造函数的作用
+
+在实际中，如果定义了其他构造函数，那么最好也提供一个默认构造函数。
+
+page 262
 
 
 ## 7.5.4 隐式地类类型转换
 
+如果构造函数只接受一个实参，则它实际上定义了转换为此类型的隐式转换机制，有时我们把这种构造函数称为**转换构造函数（converting constructor）**。
+
+```c++
+string null_book = "9-999-99999-9"
+// null_book => 构造一个临时的Sales_data对象 => 传入combine函数
+// 该对象的units_sold和revenue等于0, bookNo等于null_book
+item.combine(null_book); 
+```
+
+### 只允许一步类类型转换
+
+```
+// 错误：需要用户定义的两种转换：
+// 1. 把"9-999-99999-9"转换成string
+// 2. 再把这个临时的string转换成Sales_data
+item.combine("9-999-99999-9");
+
+// 以下两种正确
+item.combine(string("9-999-99999-9"))
+item.combine(Sales_data("9-999-99999-9"))
+```
+
+### 抑制构造函数定义的隐式转换
+
+**只能在类内声明构造函数时使用explicit关键字**, 在类外定义时不应重复.
+
+```c++
+class Sales_data {
+public:
+    Sales_data() = default;
+    Sales_data(const std::string &s, unsigned n, double p):
+        bookNo(s), units_sold(n), revenue(p*n) {}
+    explicit Sales_data(const std::string &s): bookNo(s) {}
+    explicit Sales_data(std::string &);
+    //其他成员与之前的版本一致
+};
+
+// 错误: explicit关键字阻止了隐式转换
+item.combine(null_book); 
+item.combine(cin);
+```
+
+**`explicit`构造函数只能用于直接初始化**
+
+```c++
+Sales_data item1(null_book);    // 正确: 直接初始化
+Sales_data item2 = null_book;   // 错误: 不能将explicit构造函数用于拷贝形式的初始化过程.
+```
+
+尽管编译器不会将`explicit`的构造函数用于隐式转换过程, 但是我们可以使用这样的构造函数显式地强制进行转换.
+
+```c++
+// 正确: 实参是一个显示构造的Sales_data对象
+item.combine(Sales_data(null_book));
+// 正确: static_cast可以使用explicit的构造函数
+item.combine(static_cast<Sales_data>(cin))
+```
+
+接受一个单参数的`cosnt char*`的`string`的构造函数不是`explicit`的. 接受一个容量参数的`vector`构造函数时`explicit`的. 
+
 ## 7.5.5 聚合类
+
+如果一个类满足以下条件时, 我们说它是**聚合**的:
+
+- 所有成员都是`public`的
+- 没有定义任何构造函数
+- 没有类内初始值
+- 没有基类, 也没有`virtual`函数
+
+```c++
+struct Data {
+    int ival;
+    string s;
+}
+
+Data val1 = {0, "Anna"}
+Data val2 = {"Anna", 0}     // 错误: 初始值的顺序必须与声明的顺序一致
+```
+
+注: 缺点参考page267, 不宜使用.
+
 
 ## 7.5.6 字面值常量类
 
+注: page268, 有需要再深入
 
-# 类的静态成员
+
+# 7.6 类的静态成员
+
+## 声明静态成员
+
+```c++
+class Account {
+public:
+    void calculate() { amount += amount * interestRate; }
+    static double rate() { return interestRate; }
+    static void rate(double);
+private:
+    std::string owner;
+    double amount;
+    static double interestRate;
+    static double initRate();
+}
+```
+
+类的静态成员存在于任何对象之外, 对象中不包含任何与静态数据成员有关的数据. 静态成员函数不与任何对象绑定在一起, 它们不包含`this`指针. 作为结果, 静态成员函数不能声明成`const`的, 而且我们也不能在`static`函数体内使用`this`指针. 这一限制既适用于`this`的显示使用, 也对调用非静态成员的隐式使用有效.
+
+## 使用类的静态成员
+
+```c++
+double r;
+// 使用作用域运算符访问静态成员
+r = Account::rate();
+
+// 使用对象, 引用或者指针来访问静态成员
+Account ac1;
+Account *ac2 = &ac1;
+r = ac1.rate();
+r = ac2->rate();
+
+// 成员函数不用通过作用域运算符就能直接使用静态成员
+class Account {
+public:
+    void calculate() { amount += amount * interestRate; }
+private:
+    static double interestRate;
+    // 其他成员与之前的版本一致
+}
+```
+
+## 定义静态成员
+
+当在类的外部定义静态成员时, 不能重复`static`关键字, 该关键字只出现在类内部的是声明语句(与`explicit`关键字类似).
+
+```c++
+void Account::rate(double newRate) {
+    interestRate = newRate;
+}
+```
+
+类似于全局变量, 静态数据成员定义在任何函数之外. 因此一旦它被定义, 就将**一直存在于程序的整个生命周期中**. 静态数据成员不是由类的构造函数初始化的, 而且一般的我们不能在类的内部初始化静态成员. 相反**我们必须在类的外部定义和初始化每个静态成员**. 和其他对象一样, 一个静态数据成员只能定义一次. 
+
+```
+double Account::interestRate = initRate();
+```
+
+要确保对象只定义一次, 最好的办法是把静态数据成员的定义与其他非内联函数的定义放在同一个文件中. 
+
+## 静态成员的类内初始化
+
+通常情况下, 类的静态成员不应该在类的内部初始化. 然而我们可以为静态类型提供`const`整数类型的类内初始值, 不过要求静态成员必须是字面值常量类型的`constexpr`. 初始值必须是常量表达式, 因为这些成员本身就是常量表达式, 所以它们能用在所有适合于常量表达式的地方.
+
+```c++
+class Account {
+public:
+    static double rate() { return interestRate; }
+    static void rate(double);
+private:
+    static constexpr int period = 30;   // period是常量表达式
+    double daily_tbl[period];
+}
+```
+
+如果在类的内部提供了一个初始值, 则成员的定义不能再指定一个初始值了:
+```c++
+// 一个不带初始值的静态成员的定义
+constexpr int Account::period;  // 初始值在类的定义内提供
+```
+
+
+## 静态成员能与同于某些场景, 而普通成员不行
+
+非静态成员不能是不完全类型,静态成员可以
+
+```c++
+class Bar {
+public:
+    // ...
+private:
+    static Bar mem1;    // 正确: 静态成员可以是不完全类型
+    Bar *mem2;          // 正确: 指针成员可以是不完全类型
+    Bar mem3;           // 错误: 非静态成员必须是完全类型
+}
+```
+
+非静态成员不能作为默认实参, 静态成员可以
+
+```c++
+class Screen {
+public:
+    Screen& clear(char = bkground);
+private:
+    static const char bkground;
+}
+```
